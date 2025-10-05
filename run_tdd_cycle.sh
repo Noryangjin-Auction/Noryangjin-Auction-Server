@@ -1,8 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# TDD Cycle Script v5.0 - Multi-file Support
-# main.sh로부터 3개 인자를 받아 TDD 사이클 실행 (Multi-file 지원)
+# TDD Cycle Script v5.1 - Debugger Analysis Only
 # ==============================================================================
 
 set -e
@@ -66,8 +65,7 @@ invoke_agent() {
     "$provider_script" "$model" "$agent_file" "$prompt_file"
 }
 
-# --- Multi-file 파싱 함수 ---
-parse_multifile_output() {
+parse_multifile() {
     local output_content=$1
     local output_file="tmp_prompts/multifile_temp.txt"
     echo "$output_content" > "$output_file"
@@ -80,7 +78,6 @@ import re
 with open(sys.argv[1], 'r') as f:
     content = f.read()
 
-# ===FILE_BOUNDARY=== 또는 --- 로 구분된 블록 분할 (하위호환성)
 if '===FILE_BOUNDARY===' in content:
     blocks = re.split(r'\n===FILE_BOUNDARY===\n', content)
 else:
@@ -93,8 +90,8 @@ for block in blocks:
 
     lines = block.split('\n')
     filepath = lines[0].replace('path:', '').strip()
+    filepath = filepath.replace('com/noryangjinauctioneer', 'com/noryangjin/auction/server')
 
-    # ```java 또는 ``` 로 감싸진 코드 추출
     code_lines = []
     in_code = False
 
@@ -138,15 +135,15 @@ PROMPT_FILE="tmp_prompts/test_writer.txt"
 TEST_CODE=$(invoke_agent test-writer "$PROMPT_FILE")
 
 if [ -z "$(echo "$TEST_CODE" | tr -d '[:space:]')" ]; then
-    echo -e "${RED}❌ 빈 응답${NC}"
+    echo -e "${RED}❌ test-writer 빈 응답${NC}"
     exit 1
 fi
 
-echo "$TEST_CODE" > "$TEST_FILE_PATH"
+echo "$TEST_CODE" | sed '/^```/d' > "$TEST_FILE_PATH"
 
 echo "RED 검증..."
 if $VALIDATE_SCRIPT > /dev/null 2>&1; then
-    echo -e "${RED}❌ 테스트가 실패해야 하는데 성공함${NC}"
+    echo -e "${RED}❌ 테스트가 실패해야 함${NC}"
     exit 1
 fi
 echo -e "${GREEN}✅ RED 확인${NC}"
@@ -154,12 +151,13 @@ echo -e "${GREEN}✅ RED 확인${NC}"
 # --- 🟢 GREEN ---
 log_step "🟢 2. ENGINEER/DEBUGGER (최대 ${MAX_RETRIES}회)"
 green_success=false
+last_error=""
 
 for ((i=1; i<=MAX_RETRIES; i++)); do
     echo -e "\n${YELLOW}--- 시도 #$i ---${NC}"
 
     if [ $i -eq 1 ]; then
-        # 첫 시도: Engineer에게 구현 요청
+        # 첫 시도: Engineer
         PROMPT_FILE="tmp_prompts/engineer.txt"
         {
             echo "# Task"
@@ -171,13 +169,11 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
             echo "# 구현 파일"
             cat "$IMPLEMENTATION_FILE_PATH"
         } > "$PROMPT_FILE"
+
         IMPL_CODE=$(invoke_agent engineer "$PROMPT_FILE")
     else
         # 재시도: Debugger 분석 → Engineer 재구현
-        echo -e "${CYAN}🔍 Debugger 분석 중...${NC}"
-
-        # 전체 에러 로그 저장
-        echo "$last_error" > "tmp_prompts/full_error.log"
+        echo -e "${CYAN}🔍 Debugger 분석...${NC}"
 
         DEBUGGER_PROMPT="tmp_prompts/debugger.txt"
         {
@@ -187,21 +183,22 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
             echo "# Problematic Code"
             cat "$IMPLEMENTATION_FILE_PATH"
             echo ""
-            echo "# Error Log (Full)"
-            cat "tmp_prompts/full_error.log"
+            echo "# Error Log"
+            echo "$last_error"
         } > "$DEBUGGER_PROMPT"
 
-        DEBUG_ANALYSIS=$(invoke_agent code-debugger "$DEBUGGER_PROMPT")
+        DEBUG_REPORT=$(invoke_agent code-debugger "$DEBUGGER_PROMPT")
 
-        if [ -z "$(echo "$DEBUG_ANALYSIS" | tr -d '[:space:]')" ]; then
-            last_error="Debugger가 빈 응답을 반환함"
+        if [ -z "$(echo "$DEBUG_REPORT" | tr -d '[:space:]')" ]; then
+            last_error="Debugger 빈 응답"
             continue
         fi
 
-        echo -e "${CYAN}📋 Debugger 분석 완료. Engineer에게 피드백 전달...${NC}"
+        echo -e "${CYAN}📋 Debugger 리포트:${NC}"
+        echo "$DEBUG_REPORT" | head -n 30
 
-        # Engineer 재호출 with Debugger 피드백
-        ENGINEER_RETRY_PROMPT="tmp_prompts/engineer_retry.txt"
+        # Engineer에게 피드백 전달
+        ENGINEER_RETRY="tmp_prompts/engineer_retry.txt"
         {
             echo "# Task"
             echo "$TASK_DESCRIPTION"
@@ -209,50 +206,51 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
             echo "# 테스트"
             cat "$TEST_FILE_PATH"
             echo ""
-            echo "# 이전 구현 (실패함)"
+            echo "# 이전 시도 (실패)"
             cat "$IMPLEMENTATION_FILE_PATH"
             echo ""
-            echo "# Debugger 분석 리포트"
-            echo "$DEBUG_ANALYSIS"
+            echo "# Debugger 진단"
+            echo "$DEBUG_REPORT"
             echo ""
-            echo "# 지시사항"
-            echo "위 Debugger의 분석을 바탕으로 코드를 수정하세요."
-            echo "Multi-file이 필요하면 적절한 형식으로 출력하세요."
-        } > "$ENGINEER_RETRY_PROMPT"
+            echo "위 진단을 바탕으로 올바른 코드를 작성하세요."
+        } > "$ENGINEER_RETRY"
 
-        IMPL_CODE=$(invoke_agent engineer "$ENGINEER_RETRY_PROMPT")
+        IMPL_CODE=$(invoke_agent engineer "$ENGINEER_RETRY")
     fi
 
     if [ -z "$(echo "$IMPL_CODE" | tr -d '[:space:]')" ]; then
-        last_error="Engineer가 빈 응답을 반환함"
+        last_error="Engineer 빈 응답"
         continue
     fi
 
-    # Multi-file 여부 확인 (===FILE_BOUNDARY=== 또는 --- 지원)
-    if (echo "$IMPL_CODE" | grep -q "===FILE_BOUNDARY===" || (echo "$IMPL_CODE" | grep -q "^---$" && echo "$IMPL_CODE" | grep -q "^path:")); then
-        echo -e "${BLUE}📦 Multi-file 응답 감지${NC}"
-        parse_multifile_output "$IMPL_CODE"
+    # Multi-file 지원
+    if echo "$IMPL_CODE" | grep -qE "(===FILE_BOUNDARY===|^---$)" && echo "$IMPL_CODE" | grep -q "^path:"; then
+        echo -e "${BLUE}📦 Multi-file${NC}"
+        parse_multifile "$IMPL_CODE"
     else
-        echo -e "${BLUE}📄 Single-file 응답${NC}"
-        echo "$IMPL_CODE" > "$IMPLEMENTATION_FILE_PATH"
+        echo -e "${BLUE}📄 Single-file${NC}"
+        # 코드 펜스 제거
+        echo "$IMPL_CODE" | sed '/^```/d' > "$IMPLEMENTATION_FILE_PATH"
     fi
 
+    echo -e "${CYAN}🔧 패키지 이름 자동 수정...${NC}"
+    find src/main/java -type f -name "*.java" -exec sed -i '' 's/com\.noryangjinauctioneer/com.noryangjin.auction.server/g' {} +
+
     echo "GREEN 검증..."
-    validation_output=$($VALIDATE_SCRIPT 2>&1)
-    if [ $? -eq 0 ]; then
+    if ! validation_output=$($VALIDATE_SCRIPT 2>&1); then
+        echo -e "${RED}❌ 실패${NC}"
+        last_error=$validation_output
+        echo "$last_error" > full_error.log # Use relative path, it should work now
+        echo "$last_error" | head -n 30
+    else
         echo -e "${GREEN}✅ GREEN 통과!${NC}"
         green_success=true
         break
-    else
-        echo -e "${RED}❌ 실패${NC}"
-        last_error=$validation_output
-        # 전체 로그 출력 (디버깅용)
-        echo "$last_error"
     fi
 done
 
 if [ "$green_success" = false ]; then
-    echo -e "${RED}❌ ${MAX_RETRIES}회 시도 실패${NC}"
+    echo -e "${RED}❌ ${MAX_RETRIES}회 실패${NC}"
     exit 1
 fi
 
@@ -272,10 +270,11 @@ else
     REFACTORED=$(echo "$REFACTOR_RESULT" | awk '/### ✨ Refactored Code/,/### 📝 Changes Made/' | sed '1d;$d')
 
     if [ -n "$(echo "$REFACTORED" | tr -d '[:space:]')" ]; then
-        echo "$REFACTORED" > "$IMPLEMENTATION_FILE_PATH"
+        echo "$REFACTORED" | sed '/^```/d' > "$IMPLEMENTATION_FILE_PATH"
 
-        if ! $VALIDATE_SCRIPT; then
+        if ! validation_output=$($VALIDATE_SCRIPT 2>&1); then
             echo -e "${RED}❌ 리팩토링 후 테스트 실패${NC}"
+            echo "$validation_output"
             exit 1
         fi
         echo -e "${GREEN}✅ 리팩토링 완료${NC}"

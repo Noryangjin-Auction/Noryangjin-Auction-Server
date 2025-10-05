@@ -1,3 +1,0 @@
-# Task
-Create file: 'src/main/java/com/noryangjin/auction/server/  - 구현 대상: `domain/user/UserRepository.java`'
-Requirement: UserRepository는 JpaRepository를 상속한다
