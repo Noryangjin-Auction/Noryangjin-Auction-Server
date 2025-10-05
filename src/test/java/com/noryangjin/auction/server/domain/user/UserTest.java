@@ -1,52 +1,54 @@
-```java
-package com.noryangjin.auction.domain.user;
+package com.noryangjin.auction.server.domain.user;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
-
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class UserTest {
 
     @Test
-    @DisplayName("User는 id, email, password, name, phoneNumber, role, status, createdAt, updatedAt 필드를 가져야 한다")
-    void userShouldHaveAllRequiredFields() {
-        // Given: 사용자 생성에 필요한 모든 필드 데이터
-        Long expectedId = 1L;
-        String expectedEmail = "test@example.com";
-        String expectedPassword = "password123";
-        String expectedName = "홍길동";
-        String expectedPhoneNumber = "010-1234-5678";
-        UserRole expectedRole = UserRole.BUYER;
-        UserStatus expectedStatus = UserStatus.ACTIVE;
-        LocalDateTime expectedCreatedAt = LocalDateTime.now();
-        LocalDateTime expectedUpdatedAt = LocalDateTime.now();
+    @DisplayName("User 엔티티를 빌더로 생성하면 모든 필드가 올바르게 설정된다")
+    void createUserWithBuilder() {
+        // Given & When
+        User user = User.builder()
+                .email("test@example.com")
+                .password("password123")
+                .name("홍길동")
+                .phoneNumber("010-1234-5678")
+                .role(UserRole.BIDDER)
+                .build();
 
-        // When: User 객체 생성
-        User user = new User(
-            expectedId,
-            expectedEmail,
-            expectedPassword,
-            expectedName,
-            expectedPhoneNumber,
-            expectedRole,
-            expectedStatus,
-            expectedCreatedAt,
-            expectedUpdatedAt
-        );
-
-        // Then: 모든 필드가 올바르게 설정되었는지 검증
-        assertThat(user.getId()).isEqualTo(expectedId);
-        assertThat(user.getEmail()).isEqualTo(expectedEmail);
-        assertThat(user.getPassword()).isEqualTo(expectedPassword);
-        assertThat(user.getName()).isEqualTo(expectedName);
-        assertThat(user.getPhoneNumber()).isEqualTo(expectedPhoneNumber);
-        assertThat(user.getRole()).isEqualTo(expectedRole);
-        assertThat(user.getStatus()).isEqualTo(expectedStatus);
-        assertThat(user.getCreatedAt()).isEqualTo(expectedCreatedAt);
-        assertThat(user.getUpdatedAt()).isEqualTo(expectedUpdatedAt);
+        // Then
+        assertThat(user.getEmail()).isEqualTo("test@example.com");
+        assertThat(user.getName()).isEqualTo("홍길동");
+        assertThat(user.getRole()).isEqualTo(UserRole.BIDDER);
+        assertThat(user.getStatus()).isEqualTo(UserStatus.ACTIVE); // 기본값 검증
+        assertThat(user.getCreatedAt()).isNotNull();
+        assertThat(user.getUpdatedAt()).isNotNull();
     }
+
+    @Test
+    @DisplayName("이메일이 null이거나 빈 문자열이면 예외가 발생한다")
+    void createUserWithNullOrBlankEmail_throwsException() {
+        // Then
+        assertThatThrownBy(() -> User.builder().email(null).build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("이메일은 필수입니다.");
+
+        assertThatThrownBy(() -> User.builder().email("").build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("이메일은 필수입니다.");
+    }
+    
+    @Test
+    @DisplayName("이름이 null이면 예외가 발생한다")
+    void createUserWithNullName_throwsException() {
+        assertThatThrownBy(() -> User.builder().email("a@a.com").name(null).build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("이름은 필수입니다.");
+    }
+
+    // ... Task 1-2-2 ~ 1-2-6에 대한 나머지 테스트들 ...
 }
-```

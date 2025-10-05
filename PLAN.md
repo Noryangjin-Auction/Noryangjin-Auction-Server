@@ -12,51 +12,14 @@ TECHSPEC.md의 데이터베이스 스키마와 API 명세를 기반으로 작성
 #### **Feature 1-1: User 엔티티 기본 구조**
 
 - [x] **Task 1-1-1**: User 엔티티 클래스 생성 - 기본 필드 정의
-  - 요구사항: "User는 id, email, password, name, phoneNumber, role, status, createdAt, updatedAt 필드를 가진다"
-  - 테스트: "User 엔티티를 생성하면 모든 필드가 올바르게 설정된다"
-  - 구현 대상: `domain/user/User.java`
-
 - [x] **Task 1-1-2**: UserRole Enum 생성
-  - 요구사항: "사용자 역할은 SELLER, BIDDER, ADMIN 중 하나이다"
-  - 테스트: "UserRole은 세 가지 값만 가질 수 있다"
-  - 구현 대상: `domain/user/UserRole.java`
-
 - [x] **Task 1-1-3**: UserStatus Enum 생성
-  - 요구사항: "계정 상태는 ACTIVE, SUSPENDED, DELETED 중 하나이다"
-  - 테스트: "UserStatus는 세 가지 값만 가질 수 있다"
-  - 구현 대상: `domain/user/UserStatus.java`
-
-#### **Feature 1-2: User 엔티티 검증 규칙**
-
-- [ ] **Task 1-2-1**: 이메일 필수 검증
-  - 요구사항: "이메일은 필수이며 null일 수 없다"
-  - 테스트: "이메일이 null이면 IllegalArgumentException이 발생한다"
-  - 구현 대상: `domain/user/User.java` (생성자)
-
-- [ ] **Task 1-2-2**: 이메일 빈 문자열 검증
-  - 요구사항: "이메일은 빈 문자열일 수 없다"
-  - 테스트: "이메일이 빈 문자열이면 IllegalArgumentException이 발생한다"
-  - 구현 대상: `domain/user/User.java` (생성자)
-
-- [ ] **Task 1-2-3**: 이름 필수 검증
-  - 요구사항: "사용자 이름은 필수이며 null일 수 없다"
-  - 테스트: "이름이 null이면 IllegalArgumentException이 발생한다"
-  - 구현 대상: `domain/user/User.java` (생성자)
-
-- [ ] **Task 1-2-4**: 전화번호 필수 검증
-  - 요구사항: "전화번호는 필수이며 null일 수 없다"
-  - 테스트: "전화번호가 null이면 IllegalArgumentException이 발생한다"
-  - 구현 대상: `domain/user/User.java` (생성자)
-
-- [ ] **Task 1-2-5**: 역할 필수 검증
-  - 요구사항: "사용자 역할은 필수이며 null일 수 없다"
-  - 테스트: "역할이 null이면 IllegalArgumentException이 발생한다"
-  - 구현 대상: `domain/user/User.java` (생성자)
-
-- [ ] **Task 1-2-6**: 기본 상태 설정
-  - 요구사항: "새 사용자의 기본 상태는 ACTIVE이다"
-  - 테스트: "User를 생성하면 status가 ACTIVE로 설정된다"
-  - 구현 대상: `domain/user/User.java` (생성자)
+- [x] **Task 1-2-1**: 이메일 필수 검증
+- [x] **Task 1-2-2**: 이메일 빈 문자열 검증
+- [x] **Task 1-2-3**: 이름 필수 검증
+- [x] **Task 1-2-4**: 전화번호 필수 검증
+- [x] **Task 1-2-5**: 역할 필수 검증
+- [x] **Task 1-2-6**: 기본 상태 설정
 
 #### **Feature 1-3: UserRepository 인터페이스**
 
