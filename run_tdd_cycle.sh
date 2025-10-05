@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ==============================================================================
-# TDD Cycle Script v4.0 - Simple Executor
-# main.sh로부터 3개 인자를 받아 TDD 사이클만 실행
+# TDD Cycle Script v5.0 - Multi-file Support
+# main.sh로부터 3개 인자를 받아 TDD 사이클 실행 (Multi-file 지원)
 # ==============================================================================
 
 set -e
@@ -66,6 +66,56 @@ invoke_agent() {
     "$provider_script" "$model" "$agent_file" "$prompt_file"
 }
 
+# --- Multi-file 파싱 함수 ---
+parse_multifile_output() {
+    local output_content=$1
+    local output_file="tmp_prompts/multifile_temp.txt"
+    echo "$output_content" > "$output_file"
+
+    python3 - "$output_file" <<'PYPARSESCRIPT'
+import sys
+import os
+import re
+
+with open(sys.argv[1], 'r') as f:
+    content = f.read()
+
+# ===FILE_BOUNDARY=== 또는 --- 로 구분된 블록 분할 (하위호환성)
+if '===FILE_BOUNDARY===' in content:
+    blocks = re.split(r'\n===FILE_BOUNDARY===\n', content)
+else:
+    blocks = re.split(r'\n---\n', content)
+
+for block in blocks:
+    block = block.strip()
+    if not block or not block.startswith('path:'):
+        continue
+
+    lines = block.split('\n')
+    filepath = lines[0].replace('path:', '').strip()
+
+    # ```java 또는 ``` 로 감싸진 코드 추출
+    code_lines = []
+    in_code = False
+
+    for line in lines[1:]:
+        if line.strip().startswith('```'):
+            if not in_code:
+                in_code = True
+                continue
+            else:
+                break
+        if in_code:
+            code_lines.append(line)
+
+    if code_lines:
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        with open(filepath, 'w') as f:
+            f.write('\n'.join(code_lines))
+        print(f"✓ {filepath}", file=sys.stderr)
+PYPARSESCRIPT
+}
+
 # --- 파일 준비 ---
 mkdir -p "$(dirname "$TEST_FILE_PATH")"
 mkdir -p "$(dirname "$IMPLEMENTATION_FILE_PATH")"
@@ -109,6 +159,7 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
     echo -e "\n${YELLOW}--- 시도 #$i ---${NC}"
 
     if [ $i -eq 1 ]; then
+        # 첫 시도: Engineer에게 구현 요청
         PROMPT_FILE="tmp_prompts/engineer.txt"
         {
             echo "# Task"
@@ -122,7 +173,13 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
         } > "$PROMPT_FILE"
         IMPL_CODE=$(invoke_agent engineer "$PROMPT_FILE")
     else
-        PROMPT_FILE="tmp_prompts/debugger.txt"
+        # 재시도: Debugger 분석 → Engineer 재구현
+        echo -e "${CYAN}🔍 Debugger 분석 중...${NC}"
+
+        # 전체 에러 로그 저장
+        echo "$last_error" > "tmp_prompts/full_error.log"
+
+        DEBUGGER_PROMPT="tmp_prompts/debugger.txt"
         {
             echo "# Goal"
             cat "$TEST_FILE_PATH"
@@ -130,18 +187,55 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
             echo "# Problematic Code"
             cat "$IMPLEMENTATION_FILE_PATH"
             echo ""
-            echo "# Error Log"
-            echo "$last_error"
-        } > "$PROMPT_FILE"
-        IMPL_CODE=$(invoke_agent code-debugger "$PROMPT_FILE")
+            echo "# Error Log (Full)"
+            cat "tmp_prompts/full_error.log"
+        } > "$DEBUGGER_PROMPT"
+
+        DEBUG_ANALYSIS=$(invoke_agent code-debugger "$DEBUGGER_PROMPT")
+
+        if [ -z "$(echo "$DEBUG_ANALYSIS" | tr -d '[:space:]')" ]; then
+            last_error="Debugger가 빈 응답을 반환함"
+            continue
+        fi
+
+        echo -e "${CYAN}📋 Debugger 분석 완료. Engineer에게 피드백 전달...${NC}"
+
+        # Engineer 재호출 with Debugger 피드백
+        ENGINEER_RETRY_PROMPT="tmp_prompts/engineer_retry.txt"
+        {
+            echo "# Task"
+            echo "$TASK_DESCRIPTION"
+            echo ""
+            echo "# 테스트"
+            cat "$TEST_FILE_PATH"
+            echo ""
+            echo "# 이전 구현 (실패함)"
+            cat "$IMPLEMENTATION_FILE_PATH"
+            echo ""
+            echo "# Debugger 분석 리포트"
+            echo "$DEBUG_ANALYSIS"
+            echo ""
+            echo "# 지시사항"
+            echo "위 Debugger의 분석을 바탕으로 코드를 수정하세요."
+            echo "Multi-file이 필요하면 적절한 형식으로 출력하세요."
+        } > "$ENGINEER_RETRY_PROMPT"
+
+        IMPL_CODE=$(invoke_agent engineer "$ENGINEER_RETRY_PROMPT")
     fi
 
     if [ -z "$(echo "$IMPL_CODE" | tr -d '[:space:]')" ]; then
-        last_error="빈 응답"
+        last_error="Engineer가 빈 응답을 반환함"
         continue
     fi
 
-    echo "$IMPL_CODE" > "$IMPLEMENTATION_FILE_PATH"
+    # Multi-file 여부 확인 (===FILE_BOUNDARY=== 또는 --- 지원)
+    if (echo "$IMPL_CODE" | grep -q "===FILE_BOUNDARY===" || (echo "$IMPL_CODE" | grep -q "^---$" && echo "$IMPL_CODE" | grep -q "^path:")); then
+        echo -e "${BLUE}📦 Multi-file 응답 감지${NC}"
+        parse_multifile_output "$IMPL_CODE"
+    else
+        echo -e "${BLUE}📄 Single-file 응답${NC}"
+        echo "$IMPL_CODE" > "$IMPLEMENTATION_FILE_PATH"
+    fi
 
     echo "GREEN 검증..."
     validation_output=$($VALIDATE_SCRIPT 2>&1)
@@ -152,7 +246,8 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
     else
         echo -e "${RED}❌ 실패${NC}"
         last_error=$validation_output
-        echo "$last_error" | head -n 20
+        # 전체 로그 출력 (디버깅용)
+        echo "$last_error"
     fi
 done
 

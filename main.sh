@@ -62,8 +62,9 @@ while true; do
         echo -e "${BLUE}ℹ️  구조 정의 Task (테스트 불필요) - AI가 직접 생성합니다.${NC}"
         IMPL_PATH="${SRC_PREFIX}/${TARGET}"
         mkdir -p "$(dirname "$IMPL_PATH")"
+        mkdir -p tmp_prompts
 
-        # engineer에게 파일 생성을 직접 요청 (run_tdd_cycle.sh의 로직 재사용)
+        # engineer에게 파일 생성을 직접 요청
         PROMPT_FILE="tmp_prompts/direct_creation.txt"
         {
             echo "# Task"
@@ -79,12 +80,90 @@ while true; do
 
         echo -e "🤖 ${AGENT_NAME} 호출..." >&2
         GENERATED_CODE=$("$PROVIDER_SCRIPT" "$MODEL" "$AGENT_FILE" "$PROMPT_FILE")
-        
-        echo "$GENERATED_CODE" > "$IMPL_PATH"
-        echo -e "${GREEN}✓ 파일 생성 완료: ${IMPL_PATH}${NC}"
 
+        if [ -z "$(echo "$GENERATED_CODE" | tr -d '[:space:]')" ]; then
+            echo -e "${RED}❌ Engineer가 빈 응답을 반환함${NC}"
+            exit 1
+        fi
+
+        # Multi-file 지원 (===FILE_BOUNDARY=== 또는 --- 지원)
+        if echo "$GENERATED_CODE" | grep -q "===FILE_BOUNDARY===" || (echo "$GENERATED_CODE" | grep -q "^---$" && echo "$GENERATED_CODE" | grep -q "^path:"); then
+            echo -e "${BLUE}📦 Multi-file 응답 감지${NC}"
+            # Python 파싱 스크립트 inline 실행
+            MULTIFILE_TEMP="tmp_prompts/multifile_temp.txt"
+            echo "$GENERATED_CODE" > "$MULTIFILE_TEMP"
+
+            python3 - "$MULTIFILE_TEMP" <<'PYPARSESCRIPT'
+import sys
+import os
+import re
+
+with open(sys.argv[1], 'r') as f:
+    content = f.read()
+
+# ===FILE_BOUNDARY=== 또는 --- 로 구분된 블록 분할 (하위호환성)
+if '===FILE_BOUNDARY===' in content:
+    blocks = re.split(r'\n===FILE_BOUNDARY===\n', content)
+else:
+    blocks = re.split(r'\n---\n', content)
+
+for block in blocks:
+    block = block.strip()
+    if not block or not block.startswith('path:'):
+        continue
+
+    lines = block.split('\n')
+    filepath = lines[0].replace('path:', '').strip()
+
+    # ```java 또는 ``` 로 감싸진 코드 추출
+    code_lines = []
+    in_code = False
+
+    for line in lines[1:]:
+        if line.strip().startswith('```'):
+            if not in_code:
+                in_code = True
+                continue
+            else:
+                break
+        if in_code:
+            code_lines.append(line)
+
+    if code_lines:
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        with open(filepath, 'w') as f:
+            f.write('\n'.join(code_lines))
+        print(f"✓ {filepath}", file=sys.stderr)
+PYPARSESCRIPT
+        else
+            echo -e "${BLUE}📄 Single-file 응답${NC}"
+            echo "$GENERATED_CODE" > "$IMPL_PATH"
+            echo -e "${GREEN}✓ 파일 생성 완료: ${IMPL_PATH}${NC}"
+        fi
+
+        # 최소한 컴파일 검증
+        echo -e "${YELLOW}🔍 컴파일 검증 중...${NC}"
+        if ! ./gradlew compileJava 2>&1; then
+            echo -e "${RED}❌ 컴파일 실패 - Task를 완료할 수 없습니다${NC}"
+            exit 1
+        fi
+        echo -e "${GREEN}✅ 컴파일 성공${NC}"
+
+        # Task 완료 표시 및 커밋
         mark_task_complete "$TASK_ID"
-        git add . && git commit -m "feat(task-${TASK_ID}): ${REQUIREMENT}"
+
+        if ! git add . || ! git commit -m "feat(task-${TASK_ID}): ${REQUIREMENT}"; then
+            echo -e "${RED}❌ Git 커밋 실패 - 체크박스 롤백${NC}"
+            # 체크박스 원복
+            local escaped_id=$(echo "$TASK_ID" | sed 's/[-.]/\\&/g')
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' "s/^- \[x\] **Task ${escaped_id}:/- [ ] **Task ${TASK_ID}:/" "$PLAN_FILE"
+            else
+                sed -i "s/^- \[x\] **Task ${escaped_id}:/- [ ] **Task ${TASK_ID}:/" "$PLAN_FILE"
+            fi
+            exit 1
+        fi
+
         echo -e "\n${YELLOW}⏭️  3초 후 다음 Task를 시작합니다...${NC}"
         sleep 3
         continue
@@ -99,7 +178,19 @@ while true; do
     if "$TDD_SCRIPT" "$REQUIREMENT" "$TEST_PATH" "$IMPL_PATH"; then
         echo -e "\n${GREEN}✅ Task ${TASK_ID} 성공!${NC}"
         mark_task_complete "$TASK_ID"
-        git add . && git commit -m "feat(task-${TASK_ID}): ${REQUIREMENT}"
+
+        if ! git add . || ! git commit -m "feat(task-${TASK_ID}): ${REQUIREMENT}"; then
+            echo -e "${RED}❌ Git 커밋 실패 - 체크박스 롤백${NC}"
+            # 체크박스 원복
+            local escaped_id=$(echo "$TASK_ID" | sed 's/[-.]/\\&/g')
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' "s/^- \[x\] **Task ${escaped_id}:/- [ ] **Task ${TASK_ID}:/" "$PLAN_FILE"
+            else
+                sed -i "s/^- \[x\] **Task ${escaped_id}:/- [ ] **Task ${TASK_ID}:/" "$PLAN_FILE"
+            fi
+            exit 1
+        fi
+
         echo -e "${CYAN}✓ Task ${TASK_ID} 완료 및 커밋됨${NC}"
         echo -e "\n${YELLOW}⏭️  3초 후 다음 Task...${NC}"
         sleep 3
