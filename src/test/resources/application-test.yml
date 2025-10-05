@@ -1,0 +1,18 @@
+# application-test.yml
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        show_sql: true
+
+jwt:
+  secret: ${JWT_SECRET_KEY:DefaultTestSecretKeyForLiveBiddingProject}
+  access-token-expire-time: ${JWT_ACCESS_TOKEN_EXPIRE_TIME:1800000} # 30분
+  refresh-token-expire-time: ${JWT_REFRESH_TOKEN_EXPIRE_TIME:86400000} # 24시간
