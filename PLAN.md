@@ -16,12 +16,12 @@ TECHSPEC.md의 데이터베이스 스키마와 API 명세를 기반으로 작성
   - 테스트: "User 엔티티를 생성하면 모든 필드가 올바르게 설정된다"
   - 구현 대상: `domain/user/User.java`
 
-- [ ] **Task 1-1-2**: UserRole Enum 생성
+- [x] **Task 1-1-2**: UserRole Enum 생성
   - 요구사항: "사용자 역할은 SELLER, BIDDER, ADMIN 중 하나이다"
   - 테스트: "UserRole은 세 가지 값만 가질 수 있다"
   - 구현 대상: `domain/user/UserRole.java`
 
-- [ ] **Task 1-1-3**: UserStatus Enum 생성
+- [x] **Task 1-1-3**: UserStatus Enum 생성
   - 요구사항: "계정 상태는 ACTIVE, SUSPENDED, DELETED 중 하나이다"
   - 테스트: "UserStatus는 세 가지 값만 가질 수 있다"
   - 구현 대상: `domain/user/UserStatus.java`
