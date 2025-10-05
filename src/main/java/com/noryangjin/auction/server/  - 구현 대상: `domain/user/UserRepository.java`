@@ -1,16 +1,15 @@
 
-**Test Context:**
-- Creating `UserRepository.java` for JPA
-- No test provided, so creating basic repository interface
-- Repository extends `JpaRepository<User, Long>`
-- Standard Spring Data JPA pattern
+테스트 요구사항 분석:
+1. `UserRepository` 인터페이스 생성 필요
+2. `JpaRepository<User, Long>` 상속
+3. User 엔티티와 연동
 
-**Files needed:**
-1. `UserRepository.java` - New file
+필요한 파일:
+- `UserRepository.java` (새 파일)
 
-**Decision:** Single-File (creating one new file)
+출력 형식: Single-File (단일 파일 생성)
 
-# Implementation
+---
 
 ```java
 package com.noryangjin.auction.server.domain.user;
@@ -19,14 +18,3 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 }
-```
-
-# Self-Check
-
-1. ✅ Analyzed requirements - simple JPA repository
-2. ✅ Single file needed
-3. ✅ Correct package structure
-4. ✅ Extends JpaRepository with User entity and Long ID
-5. ✅ Will compile with Spring Data JPA
-6. ✅ Simplest solution - empty interface (Spring generates implementation)
-
