@@ -75,7 +75,6 @@ public class ExistingClass {
 ```
 ===FILE_BOUNDARY===
 path: src/main/java/com/noryangjin/auction/server/api/controller/ProductController.java
-===FILE_BOUNDARY===
 ```java
 package com.noryangjin.auction.server.api.controller;
 
@@ -95,7 +94,6 @@ public class ProductController {
 ```
 ===FILE_BOUNDARY===
 path: src/main/java/com/noryangjin/auction/server/api/dto/product/ProductRequest.java
-===FILE_BOUNDARY===
 ```java
 package com.noryangjin.auction.server.api.dto.product;
 
@@ -115,7 +113,6 @@ public class ProductRequest {
 ```
 ===FILE_BOUNDARY===
 path: src/main/java/com/noryangjin/auction/server/api/dto/product/ProductResponse.java
-===FILE_BOUNDARY===
 ```java
 package com.noryangjin.auction.server.api.dto.product;
 

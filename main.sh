@@ -21,7 +21,7 @@ TEST_SRC_PREFIX="src/test/java/com/noryangjin/auction/server"
 # --- Helper Functions ---
 find_next_task() {
     # (이전과 동일한, 안정적인 파싱 로직)
-    local task_block=$(awk '/^- \[ \] **Task/ {found=1; block=$0; next} found && /^  - / {block=block"\n"$0} found && /^- \[/ {exit} found && /^$/ {exit} END {if (found) print block}' "$PLAN_FILE")
+    local task_block=$(awk '/- \[ \] \*\*Task/ {found=1; block=$0; next} found && /^  - / {block=block"\n"$0} found && /^- \[/ {exit} found && /^$/ {exit} END {if (found) print block}' "$PLAN_FILE")
     if [ -z "$task_block" ]; then return 1; fi
     echo "$task_block"
 }
@@ -30,9 +30,9 @@ mark_task_complete() {
     local task_id=$1
     local escaped_id=$(echo "$task_id" | sed 's/[-.]/\\&/g')
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        sed -i '' "s/^- \[ \] **Task ${escaped_id}:/- [x] **Task ${task_id}:/" "$PLAN_FILE"
+        sed -i '' "s/^- \[ \] \*\*Task ${escaped_id}:/- [x] **Task ${task_id}:/" "$PLAN_FILE"
     else
-        sed -i "s/^- \[ \] **Task ${escaped_id}:/- [x] **Task ${task_id}:/" "$PLAN_FILE"
+        sed -i "s/^- \[ \] \*\*Task ${escaped_id}:/- [x] **Task ${task_id}:/" "$PLAN_FILE"
     fi
     echo -e "${GREEN}✅ Task ${task_id} 완료 표시${NC}"
 }
@@ -44,16 +44,15 @@ echo -e "${CYAN}╚════════════════════�
 
 while true; do
     echo -e "\n${BLUE}📋 다음 Task를 찾는 중...${NC}"
-    TASK_BLOCK=$(find_next_task)
-    if [ $? -ne 0 ]; then
+    if ! TASK_BLOCK=$(find_next_task); then
         echo -e "${GREEN}🎉 모든 Task 완료!${NC}"
         break
     fi
 
     TASK_ID=$(echo "$TASK_BLOCK" | grep -o 'Task [0-9-]*' | head -1 | cut -d' ' -f2)
-    REQUIREMENT=$(echo "$TASK_BLOCK" | grep '요구사항:' | sed 's/.*요구사항: *"\(.*\)".*/\1/')
-    TEST_DESC=$(echo "$TASK_BLOCK" | grep '테스트:' | sed 's/.*테스트: *"\(.*\)".*/\1/')
-    TARGET=$(echo "$TASK_BLOCK" | grep '구현 대상:' | sed 's/.*구현 대상: *`\(.*\)`*.*/\1/')
+    REQUIREMENT=$(echo "$TASK_BLOCK" | grep '요구사항:' | sed 's/.*요구사항: *//' | sed -e 's/^"//' -e 's/"$//')
+    TEST_DESC=$(echo "$TASK_BLOCK" | grep '테스트:' | sed 's/.*테스트: *//')
+    TARGET=$(echo "$TASK_BLOCK" | grep '구현 대상:' | sed 's/.*구현 대상: *`\([^`]*\)`:.*/\1/')
 
     echo -e "${YELLOW}🎯 Task ${TASK_ID}: ${REQUIREMENT}${NC}"
     echo -e "   📂 대상: ${TARGET}"
@@ -87,7 +86,7 @@ while true; do
         fi
 
         # Multi-file 지원 (===FILE_BOUNDARY=== 또는 --- 지원)
-        if echo "$GENERATED_CODE" | grep -q "===FILE_BOUNDARY===" || (echo "$GENERATED_CODE" | grep -q "^---$" && echo "$GENERATED_CODE" | grep -q "^path:"); then
+        if echo "$GENERATED_CODE" | grep -q "===FILE_BOUNDARY===" || (echo "$GENERATED_CODE" | grep -q "^---" && echo "$GENERATED_CODE" | grep -q "^path:"); then
             echo -e "${BLUE}📦 Multi-file 응답 감지${NC}"
             # Python 파싱 스크립트 inline 실행
             MULTIFILE_TEMP="tmp_prompts/multifile_temp.txt"
@@ -137,7 +136,7 @@ for block in blocks:
 PYPARSESCRIPT
         else
             echo -e "${BLUE}📄 Single-file 응답${NC}"
-            echo "$GENERATED_CODE" > "$IMPL_PATH"
+            echo "$GENERATED_CODE" | sed '1d;$d' > "$IMPL_PATH"
             echo -e "${GREEN}✓ 파일 생성 완료: ${IMPL_PATH}${NC}"
         fi
 
@@ -157,9 +156,9 @@ PYPARSESCRIPT
             # 체크박스 원복
             local escaped_id=$(echo "$TASK_ID" | sed 's/[-.]/\\&/g')
             if [[ "$OSTYPE" == "darwin"* ]]; then
-                sed -i '' "s/^- \[x\] **Task ${escaped_id}:/- [ ] **Task ${TASK_ID}:/" "$PLAN_FILE"
+                sed -i '' "s/^- \[x\] \*\*Task ${escaped_id}:/- [ ] **Task ${task_id}:/" "$PLAN_FILE"
             else
-                sed -i "s/^- \[x\] **Task ${escaped_id}:/- [ ] **Task ${TASK_ID}:/" "$PLAN_FILE"
+                sed -i "s/^- \[x\] \*\*Task ${escaped_id}:/- [ ] **Task ${task_id}:/" "$PLAN_FILE"
             fi
             exit 1
         fi
@@ -184,9 +183,9 @@ PYPARSESCRIPT
             # 체크박스 원복
             local escaped_id=$(echo "$TASK_ID" | sed 's/[-.]/\\&/g')
             if [[ "$OSTYPE" == "darwin"* ]]; then
-                sed -i '' "s/^- \[x\] **Task ${escaped_id}:/- [ ] **Task ${TASK_ID}:/" "$PLAN_FILE"
+                sed -i '' "s/^- \[x\] \*\*Task ${escaped_id}:/- [ ] **Task ${task_id}:/" "$PLAN_FILE"
             else
-                sed -i "s/^- \[x\] **Task ${escaped_id}:/- [ ] **Task ${TASK_ID}:/" "$PLAN_FILE"
+                sed -i "s/^- \[x\] \*\*Task ${escaped_id}:/- [ ] **Task ${task_id}:/" "$PLAN_FILE"
             fi
             exit 1
         fi
