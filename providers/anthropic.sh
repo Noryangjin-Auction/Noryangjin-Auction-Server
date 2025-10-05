@@ -39,6 +39,9 @@ JSON_PAYLOAD=$(jq -n \
 # --- API 호출 및 결과 파싱 ---
 API_RESPONSE=$(curl -s "$API_URL" \
     -H "x-api-key: $API_KEY" \
+    -H "anthropic-version: 2023-06-01" \
+    -H "content-type: application/json" \
+    --data "$JSON_PAYLOAD" --max-time 120)
 
 if ! echo "$API_RESPONSE" | jq -e '.content[0].text' > /dev/null; then
     echo "오류: Claude로부터 유효한 응답을 받지 못했습니다." >&2
