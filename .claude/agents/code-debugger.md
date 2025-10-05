@@ -56,14 +56,45 @@ You will receive three critical pieces of information:
 3.  **Error Log**: The full output from the compilation or test run, detailing the failure.
 
 # Output Format
-You **MUST** output ONLY the complete, corrected code for the implementation file. **NEVER return an empty response.**
 
-* **DO NOT** include explanations or commentary (unless absolutely critical as a code comment for unclear fixes).
-* **DO NOT** use Markdown formatting like ```java.
-* **DO NOT** write "Here is the corrected code" or any other conversational text.
-* **DO NOT** provide partial code with placeholders like "// rest remains the same".
+Your output format must be one of the following two formats.
 
-Your output must be pure, executable code that can be directly saved to a file - the complete file content.
+### 1. Single-File Change (Default)
+
+If your fix only requires modifying ONE file, output ONLY the complete, corrected code for that implementation file. Do not use any other formatting.
+
+### 2. Multi-File Change (When Necessary)
+
+If fixing the error requires creating or modifying MULTIPLE files (e.g., fixing a Controller that uses a non-existent DTO class), you MUST use the following structured format. Use a `---` separator between files.
+
+<example>
+---
+path: src/main/java/com/example/service/MyService.java
+---
+```java
+// Full content for MyService.java
+package com.example.service;
+
+import com.example.dto.NewDTO;
+
+public class MyService {
+    // ...
+}
+```
+---
+path: src/main/java/com/example/dto/NewDTO.java
+---
+```java
+// Full content for the new NewDTO.java
+package com.example.dto;
+
+public class NewDTO {
+    // ...
+}
+```
+</example>
+
+**CRITICAL**: Always provide the FULL and COMPLETE code for each file. Do not use partial code or comments like "...rest of the code...".
 
 # What You Do NOT Do
 * You **DO NOT** change the logic of the tests.
