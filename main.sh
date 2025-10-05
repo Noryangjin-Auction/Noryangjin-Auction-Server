@@ -1,8 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# Master Orchestrator (main.sh) v2.0 - Robust Parser
-# awk를 사용하여 PLAN.md 파싱 로직을 강화하고, TDD 스크립트에 명확한 인자를 전달합니다.
+# Master Orchestrator (main.sh) v2.1 - Simplified Parser
 # ==============================================================================
 
 set -e
@@ -19,40 +18,41 @@ TDD_SCRIPT="./run_tdd_cycle.sh"
 SRC_PREFIX="src/main/java/com/noryangjin/auction/server"
 TEST_SRC_PREFIX="src/test/java/com/noryangjin/auction/server"
 
-# --- 다음 미완료 Task 정보 파싱 (awk 기반) ---
+# --- 다음 미완료 Task 정보 파싱 (단순화된 버전) ---
 find_next_task_info() {
     if [ ! -f "$PLAN_FILE" ]; then
         echo -e "${RED}오류: PLAN.md 파일을 찾을 수 없습니다.${NC}" >&2; exit 1;
     fi
 
-    # awk 스크립트를 변수로 분리하여 인용 부호 문제 해결
-    local awk_script='
-    BEGIN { FS = ": " }
-    /^- \[ \] \*\*Task/ {
-        in_task = 1
-        task_id = $1
-        sub(/.*Task /, "", task_id)
-        sub(/:$/, "", task_id)
-        next
-    }
-    in_task && /요구사항/ {
-        requirement = $2
-        next
-    }
-    in_task && /구현 대상/ {
-        target = $2
-        print task_id "|" requirement "|" target
-        exit
-    }'
+    # 첫 번째 미완료 Task 라인(- [ ])의 줄 번호 찾기
+    local line_num=$(grep -n "^- \[ \] \*\*Task" "$PLAN_FILE" | head -n 1 | cut -d: -f1)
 
-    local task_info=$(awk "$awk_script" "$PLAN_FILE")
-
-    if [ -z "$task_info" ]; then
+    if [ -z "$line_num" ]; then
         echo -e "${GREEN}🎉 축하합니다! PLAN.md의 모든 Task가 완료되었습니다!${NC}"
         exit 0
     fi
 
-    echo "$task_info"
+    # 해당 Task 블록 추출 (다음 Task 시작 전까지)
+    local next_task_start_line=$(grep -n "^- \[ \] \*\*Task" "$PLAN_FILE" | tail -n +2 | head -n 1 | cut -d: -f1)
+    local task_block
+    if [ -z "$next_task_start_line" ]; then
+        task_block=$(tail -n +$line_num "$PLAN_FILE")
+    else
+        local lines_to_read=$((next_task_start_line - line_num))
+        task_block=$(tail -n +$line_num "$PLAN_FILE" | head -n $lines_to_read)
+    fi
+
+    # 정보 추출
+    local task_id=$(echo "$task_block" | grep "^- \[ \] \*\*Task" | sed -n 's/.*Task \([0-9-]*\):.*/\1/p')
+    local requirement=$(echo "$task_block" | grep "- 요구사항:" | sed 's/.*- 요구사항: //' | tr -d '"' | xargs)
+    local target=$(echo "$task_block" | grep "- 구현 대상:" | sed 's/.*- 구현 대상: //' | tr -d '`' | xargs)
+
+    if [ -z "$task_id" ] || [ -z "$requirement" ] || [ -z "$target" ]; then
+        echo -e "${RED}오류: Task 정보 파싱 실패 (ID: $task_id, Req: $requirement, Target: $target)${NC}" >&2
+        exit 1
+    fi
+
+    echo "$task_id|$requirement|$target"
 }
 
 # --- Task 완료 표시 ---
@@ -68,7 +68,7 @@ mark_task_complete() {
 
 # --- 메인 루프 ---
 echo -e "${CYAN}╔════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║       TDD 자동화 워크플로우 시작 (v2.0)                   ║${NC}"
+echo -e "${CYAN}║       TDD 자동화 워크플로우 시작 (v2.1)                   ║${NC}
 echo -e "${CYAN}╚════════════════════════════════════════════════════════════╝${NC}
 
 while true; do
@@ -81,9 +81,7 @@ while true; do
     TASK_REQUIREMENT=$(echo "$TASK_INFO" | cut -d'|' -f2 | xargs)
     IMPLEMENTATION_TARGET=$(echo "$TASK_INFO" | cut -d'|' -f3 | xargs)
 
-    # 테스트 파일 경로 생성 (구현 대상 경로 기반)
     TEST_TARGET=$(echo "$IMPLEMENTATION_TARGET" | sed 's/\.java/Test.java/')
-
     IMPLEMENTATION_PATH="${SRC_PREFIX}/${IMPLEMENTATION_TARGET}"
     TEST_PATH="${TEST_SRC_PREFIX}/${TEST_TARGET}"
 
@@ -92,14 +90,11 @@ while true; do
     echo -e "   - 테스트 대상: ${TEST_PATH}"
     echo ""
 
-    # TDD 사이클 실행
     if $TDD_SCRIPT "$TASK_REQUIREMENT" "$TEST_PATH" "$IMPLEMENTATION_PATH"; then
         echo -e "\n${GREEN}✅ Task ${TASK_ID} 완료!${NC}"
         mark_task_complete "$TASK_ID"
         git add . && git commit -m "feat(task-${TASK_ID}): ${TASK_REQUIREMENT}" --no-verify
-        echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        echo -e "${GREEN}✓ Task ${TASK_ID} 완료 및 커밋됨${NC}"
-        echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${CYAN}✓ Task ${TASK_ID} 완료 및 커밋됨${NC}"
         echo -e "\n${YELLOW}⏭️  3초 후 다음 Task를 시작합니다...${NC}"
         sleep 3
     else
