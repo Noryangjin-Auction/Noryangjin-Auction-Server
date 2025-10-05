@@ -100,26 +100,6 @@ while true; do
     echo -e "${YELLOW}🎯 Task ${TASK_ID}: ${REQUIREMENT}${NC}"
     echo -e "   📂 대상: ${TARGET}"
 
-    # 테스트 없는 Task 처리
-    if [ "$TEST_DESC" = "없음" ]; then
-        echo -e "${BLUE}ℹ️  구조 정의 Task (테스트 불필요)${NC}"
-        IMPL_PATH="${SRC_PREFIX}/${TARGET}"
-        mkdir -p "$(dirname "$IMPL_PATH")"
-
-        if [ -f "$IMPL_PATH" ]; then
-            echo -e "${GREEN}✓ 파일 존재. 완료 처리${NC}"
-        else
-            echo -e "${YELLOW}파일 생성: ${IMPL_PATH}${NC}"
-            read -p "완료 후 Enter (s=건너뛰기): " skip
-            [ "$skip" = "s" ] && continue
-        fi
-
-        mark_task_complete "$TASK_ID"
-        git add "$IMPL_PATH" 2>/dev/null || true
-        git commit -m "feat: Task ${TASK_ID}" --no-verify 2>/dev/null || true
-        continue
-    fi
-
     # 파일 경로 생성
     IMPL_PATH="${SRC_PREFIX}/${TARGET}"
     TEST_PATH="${TEST_SRC_PREFIX}/$(echo "$TARGET" | sed 's/\.java$/Test.java/')"
