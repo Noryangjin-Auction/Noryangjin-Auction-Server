@@ -1,25 +1,6 @@
-
-테스트 요구사항을 분석하면:
-- `UserRepository`는 JPA Repository 인터페이스
-- `User` 엔티티를 관리
-- 기본 CRUD 기능 제공
-- 단일 파일 생성
-
-# Output
-
-```java
 package com.noryangjin.auction.server.domain.user;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 }
-```
-
-# Self-Check
-
-1. ✅ JpaRepository를 상속
-2. ✅ User 엔티티와 Long ID 타입 지정
-3. ✅ 올바른 패키지 구조
-4. ✅ 단일 파일이므로 Single-File 형식 사용
-5. ✅ 최소한의 코드로 구현
