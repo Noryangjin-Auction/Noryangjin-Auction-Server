@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# Master Orchestrator (main.sh) v3.0 - Python Parser
+# Master Orchestrator (main.sh) v3.1 - Final Fix
 # ==============================================================================
 
 set -e
@@ -22,13 +22,18 @@ TEST_SRC_PREFIX="src/test/java/com/noryangjin/auction/server"
 # --- Task 완료 표시 ---
 mark_task_complete() {
     local task_id=$1
-    # ... (기존과 동일)
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "s/^- \[ \] \**Task ${task_id}:/- [x] **Task ${task_id}:/" "$PLAN_FILE"
+    else
+        sed -i "s/^- \[ \] \**Task ${task_id}:/- [x] **Task ${task_id}:/" "$PLAN_FILE"
+    fi
+    echo -e "${GREEN}✅ Task ${task_id}가 완료 표시되었습니다.${NC}"
 }
 
 # --- 메인 루프 ---
 echo -e "${CYAN}╔════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║       TDD 자동화 워크플로우 시작 (v3.0)                   ║${NC}"
-echo -e "${CYAN}╚════════════════════════════════════════════════════════════╝${NC}
+echo -e "${CYAN}║       TDD 자동화 워크플로우 시작 (v3.1)                   ║${NC}"
+echo -e "${CYAN}╚════════════════════════════════════════════════════════════╝${NC}"
 
 while true; do
     echo -e "\n${BLUE}📋 다음 Task를 찾는 중...${NC}"
@@ -54,7 +59,11 @@ while true; do
 
     if $TDD_SCRIPT "$TASK_REQUIREMENT" "$TEST_PATH" "$IMPLEMENTATION_PATH"; then
         echo -e "\n${GREEN}✅ Task ${TASK_ID} 완료!${NC}"
-        # ... (Task 완료 로직, 기존과 동일)
+        mark_task_complete "$TASK_ID"
+        git add . && git commit -m "feat(task-${TASK_ID}): ${TASK_REQUIREMENT}" --no-verify
+        echo -e "${CYAN}✓ Task ${TASK_ID} 완료 및 커밋됨${NC}"
+        echo -e "\n${YELLOW}⏭️  3초 후 다음 Task를 시작합니다...${NC}"
+        sleep 3
     else
         echo -e "\n${RED}❌ Task ${TASK_ID} 실패${NC}"
         echo -e "${YELLOW}수정 후 다시 ./main.sh를 실행하세요.${NC}"
