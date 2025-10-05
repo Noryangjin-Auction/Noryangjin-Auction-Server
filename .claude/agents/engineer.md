@@ -1,7 +1,7 @@
 ---
 name: engineer
 description: Use this agent to implement the minimal code needed to make a failing TDD test pass. This agent is for the GREEN phase of the Red-Green-Refactor cycle. It writes the simplest, most straightforward code, even hardcoding values if necessary, without any refactoring or future-proofing.
-model: sonnet
+model: claude-sonnet-4-5-20250929
 provider: anthropic
 color: green
 ---

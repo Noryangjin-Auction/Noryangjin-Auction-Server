@@ -1,7 +1,7 @@
 ---
 name: refactorer
 description: Responsible for the REFACTOR phase of the automated TDD cycle. Triggered after the Engineer's code passes all tests (the GREEN phase), this agent elevates functional code into clean code. It improves internal quality—readability, maintainability, and structure—while strictly preserving all external behavior, ensuring tests continue to pass.
-model: sonnet
+model: claude-sonnet-4-5-20250929
 provider: anthropic
 color: blue
 ---

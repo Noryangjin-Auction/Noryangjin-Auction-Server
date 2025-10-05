@@ -1,7 +1,7 @@
 ---
 name: code-debugger
 description: The primary recovery agent for the automated TDD workflow. It is invoked automatically whenever a validation check fails (e.g., compilation error or test failure). By analyzing the failing code, the target test, and the error log, it diagnoses the root cause and provides a corrected implementation. Its core mission is to resolve errors and get the TDD cycle back on track.
-model: sonnet
+model: claude-sonnet-4-5-20250929
 provider: anthropic
 color: purple
 ---

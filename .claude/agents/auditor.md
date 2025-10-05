@@ -3,7 +3,7 @@ name: auditor
 description: Serves as the final, non-negotiable quality gate in the automated TDD workflow. 
   Invoked after the REFACTOR phase, this agent meticulously audits the code against all rules in the `CODING_TDD_GUIDE.md`. 
   It ensures that only code meeting the highest project standards is staged for commit. The process halts if a single violation is found.
-model: sonnet
+model: claude-sonnet-4-5-20250929
 provider: anthropic
 color: yellow
 ---
