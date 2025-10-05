@@ -11,7 +11,7 @@ TECHSPEC.md의 데이터베이스 스키마와 API 명세를 기반으로 작성
 
 #### **Feature 1-1: User 엔티티 기본 구조**
 
-- [ ] **Task 1-1-1**: User 엔티티 클래스 생성 - 기본 필드 정의
+- [x] **Task 1-1-1**: User 엔티티 클래스 생성 - 기본 필드 정의
   - 요구사항: "User는 id, email, password, name, phoneNumber, role, status, createdAt, updatedAt 필드를 가진다"
   - 테스트: "User 엔티티를 생성하면 모든 필드가 올바르게 설정된다"
   - 구현 대상: `domain/user/User.java`
