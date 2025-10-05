@@ -1,15 +1,15 @@
 
-**Test Requirements:**
-- Need to create `UserRepository.java`
-- Must extend `JpaRepository`
-- Primary operations: CRUD for `User` entity
+Test requirement를 보니 `UserRepository`는 JPA Repository로 구현해야 합니다.
 
-**Files Needed:**
-1. `UserRepository.java` (new interface)
+**필요한 파일:**
+1. `UserRepository.java` (새로 생성)
 
-**Decision:** Single file creation, using Single-File format.
+**구현 방침:**
+- `JpaRepository<User, Long>` 상속
+- 최소한의 인터페이스만 정의
+- 테스트가 요구하는 메서드만 추가 (현재는 기본 CRUD만)
 
----
+# Output
 
 ```java
 package com.noryangjin.auction.server.domain.user;
@@ -18,9 +18,3 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 }
-```
-
-**Implementation Notes:**
-- Extends `JpaRepository<User, Long>` as required
-- No custom methods yet (YAGNI principle)
-- Standard CRUD operations provided by JpaRepository
