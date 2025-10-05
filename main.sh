@@ -25,26 +25,27 @@ find_next_task_info() {
         echo -e "${RED}오류: PLAN.md 파일을 찾을 수 없습니다.${NC}" >&2; exit 1;
     fi
 
-    # awk를 사용하여 첫 번째 미완료 Task의 ID, 요구사항, 구현 대상을 한 번에 파싱
-    local task_info=$(awk \
-        'BEGIN { FS = ": " }
-        /^- \[ \] \*\*Task/ {
-            in_task = 1
-            task_id = $1
-            sub(/.*Task /, "", task_id)
-            sub(/:$/, "", task_id)
-            next
-        }
-        in_task && /요구사항/ {
-            requirement = $2
-            next
-        }
-        in_task && /구현 대상/ {
-            target = $2
-            # 정보 출력 후 즉시 종료
-            print task_id "|" requirement "|" target
-            exit
-        }' "$PLAN_FILE")
+    # awk 스크립트를 변수로 분리하여 인용 부호 문제 해결
+    local awk_script='
+    BEGIN { FS = ": " }
+    /^- \[ \] \*\*Task/ {
+        in_task = 1
+        task_id = $1
+        sub(/.*Task /, "", task_id)
+        sub(/:$/, "", task_id)
+        next
+    }
+    in_task && /요구사항/ {
+        requirement = $2
+        next
+    }
+    in_task && /구현 대상/ {
+        target = $2
+        print task_id "|" requirement "|" target
+        exit
+    }'
+
+    local task_info=$(awk "$awk_script" "$PLAN_FILE")
 
     if [ -z "$task_info" ]; then
         echo -e "${GREEN}🎉 축하합니다! PLAN.md의 모든 Task가 완료되었습니다!${NC}"
