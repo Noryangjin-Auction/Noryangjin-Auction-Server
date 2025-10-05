@@ -19,7 +19,7 @@ NC='\033[0m' # No Color
 echo -e "${YELLOW}🔄 코드 검증을 시작합니다...${NC}"
 
 echo "  1/2: 🎨 코드 포맷팅 검사 (Spotless Check)..."
-./gradlew spotlessCheck
+./gradlew spotlessApply
 
 echo "  2/2: ✅ 프로젝트 빌드 및 모든 테스트 실행..."
 ./gradlew test

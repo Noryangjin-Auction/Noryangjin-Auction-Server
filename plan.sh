@@ -13,14 +13,13 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 # --- 입력값 검증 ---
-if [ "$#" -ne 2 ]; then
-    echo -e "${RED}오류: 2개의 인수가 필요합니다.${NC}" >&2
-    echo "사용법: $0 <API_KEY> \"구현할 기능에 대한 설명\"" >&2
+if [ "$#" -ne 1 ]; then
+    echo -e "${RED}오류: 1개의 인수가 필요합니다.${NC}" >&2
+    echo "사용법: $0 \"구현할 기능에 대한 설명\"" >&2
     exit 1
 fi
 
-API_KEY=$1
-USER_GOAL=$2
+USER_GOAL=$1
 PLANNER_AGENT_NAME="planner"
 
 # --- 임시 파일 관리 ---
@@ -69,7 +68,7 @@ fi
 echo -e "🤔 ${YELLOW}${PLANNER_AGENT_NAME}${NC} 에이전트가 실행 계획을 수립합니다... (Provider: ${PROVIDER}, Model: ${MODEL_NAME})"
 echo -e "   요구사항: \"${GREEN}$USER_GOAL${NC}\""
 
-GENERATED_TEXT=$("$PROVIDER_SCRIPT" "$API_KEY" "$MODEL_NAME" "$AGENT_PERSONA_FILE" "$PROMPT_FILE")
+GENERATED_TEXT=$("$PROVIDER_SCRIPT" "$MODEL_NAME" "$AGENT_PERSONA_FILE" "$PROMPT_FILE")
 EXECUTION_PLAN=$(echo "$GENERATED_TEXT" | sed -e 's/^```[a-zA-Z]*//' -e 's/```$//')
 
 # ==============================================================================
@@ -81,10 +80,5 @@ echo "----------------------------------------"
 echo -e "${GREEN}$EXECUTION_PLAN${NC}"
 echo "----------------------------------------"
 
-
-
-# 실행 계획에 API 키를 추가하여 최종 실행 명령 생성
-FINAL_COMMAND=$(echo "$EXECUTION_PLAN" | sed "s|./run_tdd_cycle.sh|./run_tdd_cycle.sh \"$API_KEY\"|")
-
 echo -e "\n🚀 계획을 실행합니다..."
-eval "$FINAL_COMMAND"
+eval "$EXECUTION_PLAN"

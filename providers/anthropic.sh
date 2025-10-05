@@ -4,14 +4,13 @@
 set -e
 
 # --- 입력값 받기 ---
-API_KEY=$1
-MODEL_NAME=$2
-PERSONA_FILE=$3
-TASK_FILE=$4
+MODEL_NAME=$1
+PERSONA_FILE=$2
+TASK_FILE=$3
 
 # --- API 키 검증 ---
-if [ -z "$API_KEY" ]; then
-    echo "오류: 첫 번째 인자로 API_KEY가 전달되지 않았습니다." >&2
+if [ -z "$ANTHROPIC_API_KEY" ]; then
+    echo "오류: ANTHROPIC_API_KEY 환경 변수가 설정되지 않았습니다." >&2
     exit 1
 fi
 
@@ -38,7 +37,7 @@ JSON_PAYLOAD=$(jq -n \
 
 # --- API 호출 및 결과 파싱 ---
 API_RESPONSE=$(curl -s "$API_URL" \
-    -H "x-api-key: $API_KEY" \
+    -H "x-api-key: $ANTHROPIC_API_KEY" \
     -H "anthropic-version: 2023-06-01" \
     -H "content-type: application/json" \
     --data "$JSON_PAYLOAD" --max-time 120)
