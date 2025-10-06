@@ -1,4 +1,4 @@
-HELP.md
+# Gradle
 .gradle
 build/
 !gradle/wrapper/gradle-wrapper.jar
@@ -35,3 +35,38 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Claude Code ###
+# 개인 설정 (자동 커밋 권한 등)
+.claude/settings.local.json
+
+# 임시 프롬프트 파일
+tmp_prompts/
+
+# 에러 로그
+full_error.log
+
+# TDD 백업 파일
+*.tdd_backup
+
+### 운영 환경 ###
+# 환경 변수 파일
+.env
+.env.local
+.env.*.local
+
+# 시크릿 파일
+application-secret.yml
+application-prod.yml
+
+### 기타 ###
+# macOS
+.DS_Store
+
+# 로그 파일
+logs/
+*.log
+
+# 데이터베이스
+*.db
+*.sqlite

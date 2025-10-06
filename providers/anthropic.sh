@@ -20,10 +20,20 @@ PERSONA_PROMPT=$(cat "$PERSONA_FILE")
 TASK_PROMPT=$(cat "$TASK_FILE")
 
 JSON_PAYLOAD=$(jq -n \
-              --arg system_prompt "$PERSONA_PROMPT" \
-              --arg user_prompt "$TASK_PROMPT" \
-              --arg model "$MODEL_NAME" \
-              '{model: $model, max_tokens: 4096, system: $system_prompt, messages: [{role: "user", content: $user_prompt}]}')
+                  --arg model "$MODEL_NAME" \
+                  --arg system_prompt "$PERSONA_PROMPT" \
+                  --arg user_prompt "$TASK_PROMPT" \
+                  '{
+                    "model": $model,
+                    "max_tokens": 4096,
+                    "system": $system_prompt,
+                    "messages": [
+                      {
+                        "role": "user",
+                        "content": $user_prompt
+                      }
+                    ]
+                  }')
 
 # --- API 호출 및 결과 파싱 ---
 API_RESPONSE=$(curl -s "$API_URL" \
