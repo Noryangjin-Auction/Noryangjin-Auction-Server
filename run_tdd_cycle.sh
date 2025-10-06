@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# TDD Cycle Script v5.1 - Debugger Analysis Only
+# TDD Cycle Script v6.0 - State Isolation & Smart Skip
 # ==============================================================================
 
 set -e
@@ -38,6 +38,7 @@ log_step() {
 cleanup() {
     echo -e "\n${YELLOW}🧹 임시 파일 정리...${NC}"
     rm -rf tmp_prompts
+    rm -f "${IMPLEMENTATION_FILE_PATH}.tdd_backup"
 }
 trap cleanup EXIT
 mkdir -p tmp_prompts
@@ -63,6 +64,28 @@ invoke_agent() {
 
     echo -e "🤖 ${agent_name} 호출 (${provider}, ${model})..." >&2
     "$provider_script" "$model" "$agent_file" "$prompt_file"
+}
+
+validate_and_clean_output() {
+    local agent_name=$1
+    local raw_output=$2
+
+    # 1. 빈 응답 체크
+    if [ -z "$(echo "$raw_output" | tr -d '[:space:]')" ]; then
+        echo -e "${RED}ERROR: ${agent_name} returned empty response${NC}" >&2
+        return 1
+    fi
+
+    # 2. 마크다운 펜스 제거
+    local cleaned=$(echo "$raw_output" | sed '/^```[a-z]*$/d; /^```$/d')
+
+    # 3. 잘못된 패키지명 자동 수정
+    if echo "$cleaned" | grep -q "com\.noryangjinauctioneer\|com\.noryangfin"; then
+        echo -e "${YELLOW}WARNING: ${agent_name} used wrong package. Auto-fixing...${NC}" >&2
+        cleaned=$(echo "$cleaned" | sed 's/com\.noryangjinauctioneer/com.noryangjin.auction.server/g; s/com\.noryangfin/com.noryangjin/g')
+    fi
+
+    echo "$cleaned"
 }
 
 parse_multifile() {
@@ -113,40 +136,101 @@ for block in blocks:
 PYPARSESCRIPT
 }
 
+check_if_already_implemented() {
+    echo -e "${CYAN}🔍 기존 구현 상태 확인...${NC}"
+
+    # 테스트가 이미 존재하고 통과하는지 확인
+    if [ -f "$TEST_FILE_PATH" ] && [ -s "$TEST_FILE_PATH" ]; then
+        if $VALIDATE_SCRIPT > /dev/null 2>&1; then
+            echo -e "${GREEN}✅ 이미 구현되어 있음 - 스킵${NC}"
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+isolate_implementation() {
+    echo -e "${YELLOW}📦 구현 코드 임시 격리 (RED 단계)${NC}"
+
+    # 백업 생성
+    if [ -f "$IMPLEMENTATION_FILE_PATH" ]; then
+        cp "$IMPLEMENTATION_FILE_PATH" "${IMPLEMENTATION_FILE_PATH}.tdd_backup"
+    fi
+
+    # 패키지와 클래스명 추출
+    local package_path=$(dirname "$IMPLEMENTATION_FILE_PATH" | sed 's|src/main/java/||')
+    local package_name=$(echo "$package_path" | tr '/' '.')
+    local class_name=$(basename "$IMPLEMENTATION_FILE_PATH" .java)
+
+    # 빈 클래스로 초기화
+    mkdir -p "$(dirname "$IMPLEMENTATION_FILE_PATH")"
+    cat > "$IMPLEMENTATION_FILE_PATH" << EOF
+package ${package_name};
+
+public class ${class_name} {
+    // RED 단계: 테스트가 실패하도록 빈 구현
+}
+EOF
+
+    echo -e "${BLUE}  → 빈 클래스로 초기화: ${class_name}${NC}"
+}
+
+restore_implementation() {
+    if [ -f "${IMPLEMENTATION_FILE_PATH}.tdd_backup" ]; then
+        echo -e "${YELLOW}📦 구현 코드 복원${NC}"
+        mv "${IMPLEMENTATION_FILE_PATH}.tdd_backup" "$IMPLEMENTATION_FILE_PATH"
+    fi
+}
+
 # --- 파일 준비 ---
 mkdir -p "$(dirname "$TEST_FILE_PATH")"
 mkdir -p "$(dirname "$IMPLEMENTATION_FILE_PATH")"
-touch "$TEST_FILE_PATH"
-touch "$IMPLEMENTATION_FILE_PATH"
 
 log_step "🔥 TDD 시작: $TASK_DESCRIPTION"
 
+# --- 사전 체크: 이미 구현되었는가? ---
+if check_if_already_implemented; then
+    echo -e "${GREEN}🎉 Task 이미 완료됨${NC}"
+    exit 0
+fi
+
 # --- 🔴 RED ---
 log_step "🔴 1. TEST-WRITER"
+
+# 1. 구현 코드 격리
+isolate_implementation
+
+# 2. 테스트 작성
 PROMPT_FILE="tmp_prompts/test_writer.txt"
 {
     echo "# Task"
     echo "$TASK_DESCRIPTION"
     echo ""
     echo "# 현재 테스트 파일"
-    cat "$TEST_FILE_PATH"
+    if [ -f "$TEST_FILE_PATH" ]; then
+        cat "$TEST_FILE_PATH"
+    else
+        echo "// 새 테스트 파일"
+    fi
 } > "$PROMPT_FILE"
 
 TEST_CODE=$(invoke_agent test-writer "$PROMPT_FILE")
+TEST_CODE=$(validate_and_clean_output "test-writer" "$TEST_CODE") || exit 1
 
-if [ -z "$(echo "$TEST_CODE" | tr -d '[:space:]')" ]; then
-    echo -e "${RED}❌ test-writer 빈 응답${NC}"
-    exit 1
-fi
+echo "$TEST_CODE" > "$TEST_FILE_PATH"
 
-echo "$TEST_CODE" | sed '/^```/d' > "$TEST_FILE_PATH"
-
+# 3. RED 검증
 echo "RED 검증..."
 if $VALIDATE_SCRIPT > /dev/null 2>&1; then
-    echo -e "${RED}❌ 테스트가 실패해야 함${NC}"
+    echo -e "${RED}❌ 테스트가 실패해야 하는데 성공함${NC}"
+    restore_implementation
     exit 1
 fi
-echo -e "${GREEN}✅ RED 확인${NC}"
+echo -e "${GREEN}✅ RED 확인 (테스트 실패)${NC}"
+
+# 4. 구현 코드 복원
+restore_implementation
 
 # --- 🟢 GREEN ---
 log_step "🟢 2. ENGINEER/DEBUGGER (최대 ${MAX_RETRIES}회)"
@@ -167,7 +251,11 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
             cat "$TEST_FILE_PATH"
             echo ""
             echo "# 구현 파일"
-            cat "$IMPLEMENTATION_FILE_PATH"
+            if [ -f "$IMPLEMENTATION_FILE_PATH" ]; then
+                cat "$IMPLEMENTATION_FILE_PATH"
+            else
+                echo "// 새 파일"
+            fi
         } > "$PROMPT_FILE"
 
         IMPL_CODE=$(invoke_agent engineer "$PROMPT_FILE")
@@ -218,10 +306,10 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
         IMPL_CODE=$(invoke_agent engineer "$ENGINEER_RETRY")
     fi
 
-    if [ -z "$(echo "$IMPL_CODE" | tr -d '[:space:]')" ]; then
-        last_error="Engineer 빈 응답"
+    IMPL_CODE=$(validate_and_clean_output "engineer" "$IMPL_CODE") || {
+        last_error="Engineer 응답 검증 실패"
         continue
-    fi
+    }
 
     # Multi-file 지원
     if echo "$IMPL_CODE" | grep -qE "(===FILE_BOUNDARY===|^---$)" && echo "$IMPL_CODE" | grep -q "^path:"; then
@@ -229,18 +317,14 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
         parse_multifile "$IMPL_CODE"
     else
         echo -e "${BLUE}📄 Single-file${NC}"
-        # 코드 펜스 제거
-        echo "$IMPL_CODE" | sed '/^```/d' > "$IMPLEMENTATION_FILE_PATH"
+        echo "$IMPL_CODE" > "$IMPLEMENTATION_FILE_PATH"
     fi
-
-    echo -e "${CYAN}🔧 패키지 이름 자동 수정...${NC}"
-    find src/main/java -type f -name "*.java" -exec sed -i '' 's/com\.noryangjinauctioneer/com.noryangjin.auction.server/g' {} +
 
     echo "GREEN 검증..."
     if ! validation_output=$($VALIDATE_SCRIPT 2>&1); then
         echo -e "${RED}❌ 실패${NC}"
         last_error=$validation_output
-        echo "$last_error" > full_error.log # Use relative path, it should work now
+        echo "$last_error" > full_error.log
         echo "$last_error" | head -n 30
     else
         echo -e "${GREEN}✅ GREEN 통과!${NC}"
@@ -270,14 +354,20 @@ else
     REFACTORED=$(echo "$REFACTOR_RESULT" | awk '/### ✨ Refactored Code/,/### 📝 Changes Made/' | sed '1d;$d')
 
     if [ -n "$(echo "$REFACTORED" | tr -d '[:space:]')" ]; then
-        echo "$REFACTORED" | sed '/^```/d' > "$IMPLEMENTATION_FILE_PATH"
+        REFACTORED=$(validate_and_clean_output "refactorer" "$REFACTORED") || {
+            echo -e "${YELLOW}⚠️  리팩토링 출력 검증 실패 - 원본 유지${NC}"
+        }
 
-        if ! validation_output=$($VALIDATE_SCRIPT 2>&1); then
-            echo -e "${RED}❌ 리팩토링 후 테스트 실패${NC}"
-            echo "$validation_output"
-            exit 1
+        if [ -n "$REFACTORED" ]; then
+            echo "$REFACTORED" > "$IMPLEMENTATION_FILE_PATH"
+
+            if ! validation_output=$($VALIDATE_SCRIPT 2>&1); then
+                echo -e "${RED}❌ 리팩토링 후 테스트 실패${NC}"
+                echo "$validation_output"
+                exit 1
+            fi
+            echo -e "${GREEN}✅ 리팩토링 완료${NC}"
         fi
-        echo -e "${GREEN}✅ 리팩토링 완료${NC}"
     fi
 fi
 
