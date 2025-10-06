@@ -315,10 +315,10 @@ else
     echo -e "${YELLOW}📄 Single-file 테스트 생성 (Gemini) - 경로 추론${NC}"
 
     domain=$(get_domain_from_task_id "$TASK_ID")
-    class_name=$(echo "$TEST_CODE" | grep -oP '(?<=class\s)\w+(?=\s*\{)' | head -1)
+        local class_name=$(echo "$TEST_CODE" | awk 'match($0, /class\s+(\w+)/, a) {print a[1]}' | head -1)
 
     if [ -z "$class_name" ]; then
-        class_name="${domain^}Test"
+        class_name=$(echo "$domain" | sed 's/./\u&/')Test
         echo -e "${YELLOW}⚠️  클래스명 추출 실패, 기본값 사용: ${class_name}${NC}"
     fi
 
