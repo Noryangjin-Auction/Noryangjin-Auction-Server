@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Gradle Daemon 중지 (강력한 캐시 클린)
+echo -e "${YELLOW} Gradle Daemon을 중지하여 캐시를 초기화합니다...${NC}"
+./gradlew --stop
+
+
 # ==============================================================================
 # Validation Script (validate.sh) v3.0 - Enhanced Error Visibility
 #
