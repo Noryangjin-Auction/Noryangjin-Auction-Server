@@ -466,10 +466,10 @@ for ((i=1; i<=MAX_RETRIES; i++)); do
         echo -e "${YELLOW}📄 Single-file 구현 (Gemini) - 경로 추론${NC}"
 
         domain=$(get_domain_from_task_id "$TASK_ID")
-        class_name=$(echo "$IMPL_CODE" | grep -oP '(?<=public\s+(class|interface|enum)\s)\w+' | head -1)
+        local class_name=$(echo "$IMPL_CODE" | awk 'match($0, /public\s+(class|interface|enum)\s+(\w+)/, a) {print a[2]}' | head -1)
 
         if [ -z "$class_name" ]; then
-            class_name="${domain^}"
+            class_name=$(echo "$domain" | sed 's/./\u&/')
             echo -e "${YELLOW}⚠️  클래스명 추출 실패, 기본값 사용: ${class_name}${NC}"
         fi
 
