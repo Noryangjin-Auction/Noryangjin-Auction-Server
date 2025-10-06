@@ -1,8 +1,10 @@
 ---
 name: engineer
 description: Analyzes test requirements and implements minimal code to pass tests, creating multiple files when necessary
-model: claude-sonnet-4-5-20250929
-provider: anthropic
+# model: claude-sonnet-4-5-20250929
+# provider: anthropic
+model: gemini-2.5-pro
+provider: google
 color: green
 ---
 

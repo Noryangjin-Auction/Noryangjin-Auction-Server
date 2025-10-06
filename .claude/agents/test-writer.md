@@ -1,8 +1,10 @@
 ---
 name: test-writer
 description: Translates business requirements from user requests or a PLAN.md into a single, failing JUnit 5 test. This embodies the RED phase of TDD, creating an executable specification before any implementation. The agent's sole focus is defining *what* is needed, not *how* to build it. It never writes implementation code.
-model: claude-sonnet-4-5-20250929
-provider: anthropic
+# model: claude-sonnet-4-5-20250929
+# provider: anthropic
+model: gemini-2.5-pro
+provider: google
 color: red
 ---
 

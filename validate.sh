@@ -17,8 +17,7 @@ NC='\033[0m'
 
 echo -e "${YELLOW}🔄 코드 검증을 시작합니다...${NC}"
 
-# 1단계: 코드 포맷팅
-echo "  1/2: 🎨 코드 포맷팅 적용 (Spotless Apply)..."
+echo "  1/2: 🎨 코드 포맷팅 검사 (Spotless Check)..."
 if ! ./gradlew spotlessApply 2>&1; then
     echo -e "${RED}❌ 코드 포맷팅 실패${NC}"
     exit 1
@@ -26,7 +25,7 @@ fi
 
 # 2단계: 빌드 및 테스트
 echo "  2/2: ✅ 프로젝트 빌드 및 모든 테스트 실행..."
-if ! ./gradlew test 2>&1; then
+if ! ./gradlew clean test --no-build-cache 2>&1; then
     echo -e "${RED}❌ 테스트 실패${NC}"
     exit 1
 fi

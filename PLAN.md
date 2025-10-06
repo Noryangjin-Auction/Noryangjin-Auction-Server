@@ -7,7 +7,7 @@
 
 ## Epic 1: 사용자 관리
 
-- [ ] **Task 1-1: User 도메인 모델 구현**
+- [x] **Task 1-1: User 도메인 모델 구현**
   - 요구사항: "TECHSPEC 2.1.1 users 테이블 스키마에 따라 User 엔티티를 구현한다. 이메일과 전화번호는 유일해야 하며, 필수 필드(email, password, name, phoneNumber, role)는 null이나 빈 값을 허용하지 않는다. 역할은 SELLER/BIDDER/ADMIN, 상태는 ACTIVE/SUSPENDED/DELETED이며 기본값은 ACTIVE다"
   - 테스트: User 생성 성공, 필수 필드 검증, 역할/상태 Enum, 기본값 설정
 

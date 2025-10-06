@@ -1,8 +1,10 @@
 ---
 name: code-debugger
 description: Elite diagnostic agent that analyzes compilation errors and test failures. Provides detailed root cause analysis and precise fix recommendations to the Engineer agent. Does NOT write implementation code directly.
-model: claude-sonnet-4-5-20250929
-provider: anthropic
+# model: claude-sonnet-4-5-20250929
+# provider: anthropic
+model: gemini-2.5-pro
+provider: google
 color: purple
 ---
 
